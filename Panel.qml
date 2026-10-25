@@ -42,28 +42,22 @@ Panel {
     root.bar.shell.updateEntryInline(root.moduleName, next)
   }
 
-  // Moves the official kDrive icon between the tray's hidden and normal lists.
+  // Moves the official kDrive icon in or out of the tray's hidden list.
+  // A third-party widget may only update its own shell.json entry, and
+  // `omarchy bar set --json` mangles arrays, so edit the file in one write
+  // (tray lists and our own setting together); the shell reloads it on change.
   function setTrayIconHidden(hidden) {
-    var shell = root.bar ? root.bar.shell : null
-    var layout = shell && shell.shellConfig && shell.shellConfig.bar ? shell.shellConfig.bar.layout : null
-    if (layout) {
-      var sections = ["left", "center", "right"]
-      for (var s = 0; s < sections.length; s++) {
-        var entries = layout[sections[s]] || []
-        for (var i = 0; i < entries.length; i++) {
-          if (!entries[i] || entries[i].id !== "omarchy.tray") continue
-          var tray = JSON.parse(JSON.stringify(entries[i]))
-          var hiddenIds = (tray.hidden || []).filter(function(id) { return id !== root.trayId })
-          var pinnedIds = (tray.pinned || []).filter(function(id) { return id !== root.trayId })
-          if (hidden) hiddenIds.push(root.trayId)
-          else pinnedIds.push(root.trayId)
-          tray.hidden = hiddenIds
-          tray.pinned = pinnedIds
-          shell.updateEntryInline("omarchy.tray", tray)
-        }
-      }
-    }
-    saveSetting("hideTrayIcon", hidden)
+    if (trayProc.running) return
+    trayProc.command = ["bash", "-c",
+      "f=\"$1\"; tmp=$(mktemp \"$f.XXXXXX\") || exit 1; " +
+      "jq --arg id \"$2\" --arg me \"$3\" --argjson hide \"$4\" '" +
+      "(.bar.layout[][] | select(.id == \"omarchy.tray\")) |= (" +
+      "  .hidden = ((.hidden // [] | if type == \"array\" then . else [.] end) - [$id] + (if $hide then [$id] else [] end))" +
+      "  | .pinned = ((.pinned // []) - (if $hide then [$id] else [] end)))" +
+      " | (.bar.layout[][] | select(.id == $me)).hideTrayIcon = $hide" +
+      "' \"$f\" > \"$tmp\" && mv \"$tmp\" \"$f\" || { rm -f \"$tmp\"; exit 1; }",
+      "kdrive-tray", root.home + "/.config/omarchy/shell.json", root.trayId, root.moduleName, hidden ? "true" : "false"]
+    trayProc.running = true
   }
 
   // ---------- kDrive state ----------
@@ -181,6 +175,8 @@ Panel {
       onStreamFinished: root.recentErrors = String(text || "").split("\n").filter(function(l) { return l.trim() !== "" })
     }
   }
+
+  Process { id: trayProc }
 
   Process {
     id: restartProc

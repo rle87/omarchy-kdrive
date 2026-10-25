@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "rle87.kdrive",
   "name": "kDrive",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "author": "rle87",
   "description": "État de la synchronisation kDrive (Infomaniak) dans la barre, avec un panneau d'actions et de réglages.",
   "kinds": [
