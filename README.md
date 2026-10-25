@@ -37,31 +37,38 @@ Pour lancer kDrive à l'ouverture de session, ajoutez dans `~/.config/hypr/autos
 o.launch_on_start("/home/<vous>/Applications/kDrive.AppImage")
 ```
 
-## Fonctionnement et limites
+## Fonctionnement en bref
 
-Sous Linux, kDrive 3.x fait communiquer son interface et son serveur de synchronisation par un canal
-qui n'accepte **qu'un seul client** : un second client déconnecterait l'interface officielle, et le
-serveur s'arrête quand l'interface se déconnecte. Le widget ne s'y branche donc pas.
+Le fonctionnement complet est décrit dans **[docs/fonctionnement.md](docs/fonctionnement.md)** :
+architecture de kDrive, lecture de l'état, actions, réglages, suivi d'Infomaniak et dépannage.
 
-Il lit l'état dans l'infobulle de l'icône officielle (StatusNotifierItem `kDrive_client`), en
-reconnaissant les messages dans toutes les langues de kDrive, et pilote le client de l'extérieur.
-Conséquence : **pause et reprise** passent encore par la fenêtre kDrive.
+```
+kDrive.AppImage ── serveur de synchronisation
+                     └── kDrive_client (interface) ── icône de notification « kDrive_client »
+                                                              │ infobulle (D-Bus)
+                                                              ▼
+                                           widget rle87.kdrive ── panneau, actions, notifications
+```
 
-Infomaniak prépare pour kDrive 4 un nouveau canal sous Linux (branche `linux-v4/*`). Quand il sera
-publié, le suivi automatique ci-dessous le signalera, et le widget pourra piloter kDrive directement.
+- **Lecture seule de l'état.** Sous Linux, kDrive 3.x relie son interface et son serveur par un canal
+  qui n'accepte qu'un seul client, et le serveur s'arrête si ce client se déconnecte. Le widget ne
+  s'y branche donc pas : il lit l'infobulle de l'icône officielle, dans toutes les langues de kDrive.
+- **Pilotage de l'extérieur** : ouvrir la fenêtre kDrive, redémarrer le client, ouvrir le dossier.
+  **Pause et reprise** passent encore par la fenêtre kDrive.
+- **Suivi d'Infomaniak** : les sources officielles sont en sous-module dans `upstream/`. Chaque
+  semaine, une tâche GitHub passe au dernier tag de version, régénère les messages traduits, vérifie
+  la compatibilité et ouvre une pull request avec un rapport. Elle signalera aussi l'arrivée sous
+  Linux du nouveau canal de kDrive 4, qui permettra de piloter kDrive directement.
 
-## Suivi du dépôt Infomaniak
+## Dépannage rapide
 
-Les sources officielles ([Infomaniak/desktop-kDrive](https://github.com/Infomaniak/desktop-kDrive))
-sont liées en sous-module dans `upstream/`, fixées sur la version prise en charge.
+- **La synchronisation s'arrête toute seule** (« Synchronisation arrêtée ») sur un disque ext4 dédié :
+  le dossier `lost+found`, réservé à root, bloque kDrive, et l'exclure dans kDrive ne suffit pas.
+  `sudo chown "$USER:$USER" /chemin/du/disque/lost+found`, puis « Redémarrer » dans le panneau.
+- **« Le dossier n'est pas modifiable »** : le dossier appartient à un autre utilisateur.
+- **« État inconnu »** : message de kDrive non reconnu ; le panneau affiche le texte brut.
 
-Chaque semaine, la tâche GitHub [`Track kDrive upstream`](.github/workflows/upstream.yml) :
-
-1. cherche le dernier tag de version d'Infomaniak ;
-2. met à jour le sous-module et régénère `StatusStrings.js` (messages d'état traduits) ;
-3. vérifie que l'interface kDrive construit toujours l'infobulle avec ces messages, et quel canal
-   de communication Linux utilise ;
-4. ouvre une pull request avec ce rapport (titre marqué ⚠️ si l'infobulle a changé).
+Détails et autres cas : [docs/fonctionnement.md#dépannage](docs/fonctionnement.md#dépannage).
 
 ## Développement
 
@@ -78,6 +85,8 @@ tools/update-status-strings.py      # régénère StatusStrings.js depuis upstre
 | `Status.js` | Analyse de l'infobulle kDrive |
 | `StatusStrings.js` | Messages d'état traduits, **généré** |
 | `tools/update-status-strings.py` | Générateur et vérifications de compatibilité |
+| `.github/workflows/upstream.yml` | Suivi hebdomadaire des versions d'Infomaniak |
+| `docs/fonctionnement.md` | Documentation détaillée |
 
 Pour tester une modification, copiez les fichiers du plugin dans
 `~/.config/omarchy/plugins/rle87.kdrive/` : le shell recharge le plugin à l'enregistrement.
