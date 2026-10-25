@@ -1,0 +1,10 @@
+# Keeps the SHA-pinned GitHub Actions up to date. The kDrive submodule is
+# tracked by .github/workflows/upstream.yml instead (version tags, not commits).
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: ci

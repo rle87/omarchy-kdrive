@@ -7,15 +7,22 @@ on:
     - cron: "17 6 * * 1"
   workflow_dispatch:
 
-permissions:
-  contents: write
-  pull-requests: write
+# Nothing by default; the job below asks only for what it needs.
+permissions: {}
+
+concurrency:
+  group: upstream
+  cancel-in-progress: false
 
 jobs:
   update:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write        # push the upstream/<version> branch
+      pull-requests: write   # open the pull request
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           submodules: true
           fetch-depth: 0
@@ -26,6 +33,8 @@ jobs:
           latest=$(git ls-remote --tags --refs https://github.com/Infomaniak/desktop-kDrive.git \
             | sed 's|.*refs/tags/||' | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -1)
           current=$(git -C upstream describe --tags --exact-match 2>/dev/null || git -C upstream rev-parse --short HEAD)
+          # Tags come from another repository: only accept plain X.Y.Z versions.
+          [[ $latest =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "Unexpected tag: $latest"; exit 1; }
           echo "latest=$latest" >> "$GITHUB_OUTPUT"
           echo "current=$current" >> "$GITHUB_OUTPUT"
           echo "Current: $current, latest: $latest"
@@ -33,9 +42,11 @@ jobs:
       - name: Update submodule and regenerate strings
         if: steps.tag.outputs.latest != steps.tag.outputs.current
         id: update
+        env:
+          LATEST: ${{ steps.tag.outputs.latest }}
         run: |
-          git -C upstream fetch --depth 1 origin tag "${{ steps.tag.outputs.latest }}"
-          git -C upstream checkout "${{ steps.tag.outputs.latest }}"
+          git -C upstream fetch --depth 1 origin tag "$LATEST"
+          git -C upstream checkout "$LATEST"
           set +e
           python3 tools/update-status-strings.py --report "$RUNNER_TEMP/report.md"
           echo "compatible=$([ $? -eq 0 ] && echo yes || echo no)" >> "$GITHUB_OUTPUT"
