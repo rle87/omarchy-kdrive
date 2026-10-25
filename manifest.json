@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "id": "rle87.kdrive",
+  "name": "kDrive",
+  "version": "0.1.0",
+  "author": "rle87",
+  "description": "État de la synchronisation kDrive (Infomaniak) dans la barre, avec un panneau d'actions et de réglages.",
+  "kinds": [
+    "bar-widget"
+  ],
+  "entryPoints": {
+    "barWidget": "Panel.qml"
+  },
+  "barWidget": {
+    "displayName": "kDrive",
+    "description": "État de la synchronisation kDrive et actions rapides",
+    "category": "System",
+    "allowMultiple": false,
+    "defaultSection": "right"
+  }
+}
